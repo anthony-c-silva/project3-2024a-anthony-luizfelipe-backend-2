@@ -6,13 +6,13 @@ const app = fastify()
 
 const prisma = new PrismaClient()
 
-app.get('/usuarios', async() =>{
-    const usuarios = await prisma.user.findMany()
+app.get('/users', async() =>{
+    const users = await prisma.user.findMany()
 
-    return {usuarios}
+    return {users}
 })
 
-app.post('/usuarios', async (request, reply)=>{
+app.post('/users', async (request, reply)=>{
     const createUserSchema = z.object({
         nome: z.string(),
         email:z.string().email(),
