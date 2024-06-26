@@ -13,9 +13,44 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model User{
-  id String @id @default(cuid())
-  name String
-  email String
-  createdAt DateTime @default(now())
+// model User{
+//   id String @id @default(cuid())
+//   name String
+//   email String
+//   createdAt DateTime @default(now())
+// }
+
+model Abrigo {
+  id       Int      @id @default(autoincrement())
+  nome     String
+  endereco String
+  usuarios Usuario[]
+  itens    Item[]
 }
+
+model Usuario {
+  id       Int      @id @default(autoincrement())
+  nome     String
+  email    String   @unique
+  abrigoId Int
+  abrigo   Abrigo   @relation(fields: [abrigoId], references: [id])
+}
+
+model Item {
+  id       Int      @id @default(autoincrement())
+  nome     String
+  descricao  String?
+  quantidade Int
+  abrigoId Int
+  abrigo   Abrigo   @relation(fields: [abrigoId], references: [id])
+  doacoes  Doacao[]
+}
+
+model Doacao {
+  id        Int      @id @default(autoincrement())
+  itemId    Int
+  quantidade Int
+  data      DateTime
+  item      Item     @relation(fields: [itemId], references: [id])
+}
+
