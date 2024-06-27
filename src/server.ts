@@ -1,16 +1,18 @@
 import { PrismaClient } from '@prisma/client';
 import fastify from 'fastify';
 import { z } from 'zod';
-import { FastifyCorsOptions } from 'fastify-cors';
+import fastifyCors from 'fastify-cors';
 
 const app = fastify();
 const prisma = new PrismaClient();
 
 // Middleware de CORS
-const corsOptions: FastifyCorsOptions = {
-  origin: '*',
+const corsOptions = {
+  origin: 'https://endearing-starship-fe8800.netlify.app', 
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
 };
-app.register(require('fastify-cors'), corsOptions);
+app.register(fastifyCors, corsOptions);
 
 // Endpoints de Abrigos
 app.post('/abrigos', async (request, reply) => {
@@ -250,13 +252,6 @@ app.delete('/doacoes/:id', async (request) => {
   return { message: 'Doação deletada com sucesso' };
 });
 
-// app.listen({
-//   host: '0.0.0.0',
-//   port: process.env.PORT ? Number(process.env.PORT) : 3333,
-// }).then(() => {
-//   console.log('Rodando Server HTTP');
-// });
-
 // Inicie o servidor
 const start = async () => {
   try {
@@ -269,4 +264,3 @@ const start = async () => {
 };
 
 start();
-
