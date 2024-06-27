@@ -21,36 +21,38 @@ datasource db {
 // }
 
 model Abrigo {
-  id       Int      @id @default(autoincrement())
-  nome     String
-  endereco String
-  usuarios Usuario[]
-  itens    Item[]
-}
-
-model Usuario {
-  id       Int      @id @default(autoincrement())
-  nome     String
-  email    String   @unique
-  abrigoId Int
-  abrigo   Abrigo   @relation(fields: [abrigoId], references: [id])
+  id        Int       @id @default(autoincrement())
+  nome      String
+  endereco  String
+  usuarios  Usuario[]
+  itens     Item[]
 }
 
 model Item {
-  id       Int      @id @default(autoincrement())
-  nome     String
-  descricao  String?
+  id         Int       @id @default(autoincrement())
+  nome       String
   quantidade Int
-  abrigoId Int
-  abrigo   Abrigo   @relation(fields: [abrigoId], references: [id])
-  doacoes  Doacao[]
+  categoria  String
+  abrigoId   Int
+  abrigo     Abrigo    @relation(fields: [abrigoId], references: [id])
+  doacoes    Doacao[]
+}
+
+model Usuario {
+  id          Int       @id @default(autoincrement())
+  nomeUsuario String
+  senha       String
+  email       String
+  abrigoId    Int
+  abrigo      Abrigo    @relation(fields: [abrigoId], references: [id])
 }
 
 model Doacao {
-  id        Int      @id @default(autoincrement())
-  itemId    Int
+  id         Int       @id @default(autoincrement())
   quantidade Int
-  data      DateTime
-  item      Item     @relation(fields: [itemId], references: [id])
+  data       DateTime
+  itemId     Int
+  item       Item      @relation(fields: [itemId], references: [id])
 }
+
 
