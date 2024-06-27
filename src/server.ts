@@ -107,15 +107,15 @@ app.get('/abrigos/:id', async (request, reply) => {
 app.post('/abrigos', async (request, reply) => {
   const createAbrigoSchema = z.object({
     nome: z.string(),
-    endereco: z.string(),
+    localizacao: z.string(),
   });
 
-  const { nome, endereco } = createAbrigoSchema.parse(request.body);
+  const { nome, localizacao } = createAbrigoSchema.parse(request.body);
 
   await prisma.abrigo.create({
     data: {
       nome,
-      endereco,
+      localizacao,
     },
   });
 
@@ -126,7 +126,7 @@ app.put('/abrigos/:id', async (request, reply) => {
   const { id } = request.params as { id: string };
   const updateAbrigoSchema = z.object({
     nome: z.string().optional(),
-    endereco: z.string().optional(),
+    localizacao: z.string().optional(),
   });
 
   const data = updateAbrigoSchema.parse(request.body);
