@@ -294,7 +294,7 @@ app.delete('/doacoes/:id', async (request, reply) => {
   return reply.status(204).send();
 });
 
-app.listen(process.env.PORT || 3000, '0.0.0.0', (err, address) => {
+app.listen(process.env.PORT || 3333, '0.0.0.0', (err, address) => {
   if (err) {
       app.log.error(err);
       process.exit(1);
