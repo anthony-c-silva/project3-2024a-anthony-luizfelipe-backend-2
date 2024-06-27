@@ -1,16 +1,10 @@
 import { PrismaClient } from '@prisma/client';
 import fastify from 'fastify';
 import { z } from 'zod';
-import { FastifyCorsOptions } from 'fastify-cors';
 
 const app = fastify({ logger: true });
 const prisma = new PrismaClient();
 
-// Middleware de CORS
-const corsOptions: FastifyCorsOptions = {
-  origin: '*',
-};
-app.register(require('fastify-cors'), corsOptions);
 // CRUD para tabela Usuario
 
 app.get('/usuarios', async () => {
