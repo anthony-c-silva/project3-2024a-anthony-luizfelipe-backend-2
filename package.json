@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "engines": {
-    "node":"18"
+    "node": "18"
   },
   "scripts": {
     "dev": "tsx src/server.ts",
@@ -15,6 +15,7 @@
   "author": "",
   "license": "ISC",
   "devDependencies": {
+    "@types/fastify-cors": "^2.1.0",
     "@types/node": "^20.14.8",
     "prisma": "^5.16.0",
     "tsup": "^8.1.0",
@@ -24,6 +25,7 @@
   "dependencies": {
     "@prisma/client": "^5.16.0",
     "fastify": "^4.28.0",
+    "fastify-cors": "^6.1.0",
     "zod": "^3.23.8"
   }
 }

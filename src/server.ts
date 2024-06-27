@@ -1,10 +1,16 @@
 import { PrismaClient } from '@prisma/client';
 import fastify from 'fastify';
 import { z } from 'zod';
+import { FastifyCorsOptions } from 'fastify-cors';
 
-const app = fastify();
+const app = fastify({ logger: true });
 const prisma = new PrismaClient();
 
+// Middleware de CORS
+const corsOptions: FastifyCorsOptions = {
+  origin: '*',
+};
+app.register(require('fastify-cors'), corsOptions);
 // CRUD para tabela Usuario
 
 app.get('/usuarios', async () => {
@@ -288,9 +294,10 @@ app.delete('/doacoes/:id', async (request, reply) => {
   return reply.status(204).send();
 });
 
-app.listen({
-  host: '0.0.0.0',
-  port: process.env.PORT ? Number(process.env.PORT) : 3333,
-}).then(() => {
-  console.log('Rodando Server HTTP');
+app.listen(process.env.PORT || 3000, '0.0.0.0', (err, address) => {
+  if (err) {
+      app.log.error(err);
+      process.exit(1);
+  }
+  app.log.info(`Servidor rodando em ${address}`);
 });
