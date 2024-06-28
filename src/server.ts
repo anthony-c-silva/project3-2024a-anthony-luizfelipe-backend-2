@@ -8,7 +8,7 @@ const prisma = new PrismaClient();
 
 // Middleware de CORS
 const corsOptions = {
-  origin: 'https://endearing-starship-fe8800.netlify.app', 
+  origin: ['https://endearing-starship-fe8800.netlify.app', 'http://localhost:5173/'], 
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
 };
