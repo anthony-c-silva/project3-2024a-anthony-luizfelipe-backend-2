@@ -14,6 +14,7 @@ CREATE TABLE "Item" (
     "nome" TEXT NOT NULL,
     "descricao" TEXT,
     "quantidade" INTEGER NOT NULL,
+    "categoria" TEXT NOT NULL,
     "abrigoId" INTEGER NOT NULL,
 
     CONSTRAINT "Item_pkey" PRIMARY KEY ("id")
