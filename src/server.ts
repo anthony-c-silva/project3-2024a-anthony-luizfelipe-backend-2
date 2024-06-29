@@ -79,6 +79,7 @@ app.delete('/abrigos/:id', async (request) => {
 });
 
 // Endpoints de Itens
+
 app.post('/itens', async (request, reply) => {
   const createItemSchema = z.object({
     nome: z.string(),
@@ -100,6 +101,21 @@ app.post('/itens', async (request, reply) => {
     }
     throw e;
   }
+});
+
+
+app.get('/itens', async () => {
+  const itens = await prisma.item.findMany();
+  return { itens };
+});
+
+app.get('/itens/:id', async (request) => {
+  const { id } = request.params as { id: string };
+  const item = await prisma.item.findUnique({
+    where: { id: Number(id) },
+  });
+
+  return { item };
 });
 
 app.put('/itens/:id', async (request) => {
@@ -130,6 +146,10 @@ app.delete('/itens/:id', async (request) => {
 
   return { message: 'Item deletado com sucesso' };
 });
+
+
+
+
 
 // Endpoints de Usuários
 app.post('/usuarios', async (request, reply) => {
@@ -197,6 +217,10 @@ app.delete('/usuarios/:id', async (request) => {
 
   return { message: 'Usuário deletado com sucesso' };
 });
+
+
+
+
 
 // Endpoints de Doações
 app.post('/doacoes', async (request, reply) => {
