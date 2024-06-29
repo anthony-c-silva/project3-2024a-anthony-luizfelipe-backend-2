@@ -15,6 +15,7 @@ const corsOptions = {
 app.register(fastifyCors, corsOptions);
 
 // Endpoints de Abrigos
+
 app.post('/abrigos', async (request, reply) => {
   const createAbrigoSchema = z.object({
     nome: z.string(),
@@ -23,11 +24,17 @@ app.post('/abrigos', async (request, reply) => {
 
   const { nome, endereco } = createAbrigoSchema.parse(request.body);
 
-  await prisma.abrigo.create({
-    data: { nome, endereco },
-  });
-
-  return reply.status(201).send();
+  try {
+    await prisma.abrigo.create({
+      data: { nome, endereco },
+    });
+    return reply.status(201).send();
+  } catch (e) {
+    if (e.code === 'P2002') {
+      return reply.status(400).send({ error: 'Abrigo já existe' });
+    }
+    throw e;
+  }
 });
 
 app.get('/abrigos', async () => {
@@ -82,25 +89,17 @@ app.post('/itens', async (request, reply) => {
 
   const { nome, quantidade, categoria, abrigoId } = createItemSchema.parse(request.body);
 
-  await prisma.item.create({
-    data: { nome, quantidade, categoria, abrigoId },
-  });
-
-  return reply.status(201).send();
-});
-
-app.get('/itens', async () => {
-  const itens = await prisma.item.findMany();
-  return { itens };
-});
-
-app.get('/itens/:id', async (request) => {
-  const { id } = request.params as { id: string };
-  const item = await prisma.item.findUnique({
-    where: { id: Number(id) },
-  });
-
-  return { item };
+  try {
+    await prisma.item.create({
+      data: { nome, quantidade, categoria, abrigoId },
+    });
+    return reply.status(201).send();
+  } catch (e) {
+    if (e.code === 'P2002') {
+      return reply.status(400).send({ error: 'Item já existe' });
+    }
+    throw e;
+  }
 });
 
 app.put('/itens/:id', async (request) => {
@@ -143,11 +142,17 @@ app.post('/usuarios', async (request, reply) => {
 
   const { nomeUsuario, senha, email, abrigoId } = createUsuarioSchema.parse(request.body);
 
-  await prisma.usuario.create({
-    data: { nomeUsuario, senha, email, abrigoId },
-  });
-
-  return reply.status(201).send();
+  try {
+    await prisma.usuario.create({
+      data: { nomeUsuario, senha, email, abrigoId },
+    });
+    return reply.status(201).send();
+  } catch (e) {
+    if (e.code === 'P2002') {
+      return reply.status(400).send({ error: 'Email já está em uso' });
+    }
+    throw e;
+  }
 });
 
 app.get('/usuarios', async () => {
