@@ -21,6 +21,7 @@ model Item {
   nome        String  @unique
   descricao   String?
   quantidade  Int
+  categoria   String
   abrigoId    Int
   abrigo      Abrigo  @relation(fields: [abrigoId], references: [id])
   doacoes     Doacao[]
