@@ -29,8 +29,8 @@ CREATE TABLE "Usuario" (
     "nomeUsuario" TEXT NOT NULL,
     "senha" TEXT NOT NULL,
     "email" TEXT NOT NULL,
+    "isAdmin" BOOLEAN NOT NULL DEFAULT false,
     "abrigoId" INTEGER NOT NULL,
-    "role" "Role" NOT NULL DEFAULT 'USER',
 
     CONSTRAINT "Usuario_pkey" PRIMARY KEY ("id")
 );

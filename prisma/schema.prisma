@@ -26,15 +26,14 @@ model Item {
   abrigo      Abrigo  @relation(fields: [abrigoId], references: [id])
   doacoes     Doacao[]
 }
-
 model Usuario {
   id          Int       @id @default(autoincrement())
   nomeUsuario String
   senha       String
   email       String    @unique
+  isAdmin     Boolean   @default(false)
   abrigoId    Int
   abrigo      Abrigo    @relation(fields: [abrigoId], references: [id])
-  role        Role      @default(USER)
 }
 
 model Doacao {

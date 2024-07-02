@@ -1,64 +1,78 @@
-import { PrismaClient, Role } from '@prisma/client';
+import { PrismaClient } from '@prisma/client';
 import fastify from 'fastify';
 import { z } from 'zod';
 import fastifyCors from 'fastify-cors';
 import fastifyJwt from 'fastify-jwt';
+import bcrypt from 'bcrypt';
 
 const app = fastify();
 const prisma = new PrismaClient();
 
 // Middleware de CORS
 const corsOptions = {
-  origin: ['https://endearing-starship-fe8800.netlify.app', 'http://localhost:5173'], 
+  origin: ['https://endearing-starship-fe8800.netlify.app', 'http://localhost:5173'],
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
 };
 app.register(fastifyCors, corsOptions);
 
-// Middleware de JWT
+// Configuração do JWT
 app.register(fastifyJwt, {
-  secret: 'zecarioca',
+  secret: 'supersecretkey',
 });
 
-// Autenticação
-app.post('/login', async (request, reply) => {
-  const loginSchema = z.object({
-    email: z.string().email(),
-    senha: z.string(),
-  });
-
-  const { email, senha } = loginSchema.parse(request.body);
-
-  const usuario = await prisma.usuario.findUnique({
-    where: { email },
-  });
-
-  if (!usuario || usuario.senha !== senha) {
-    return reply.status(401).send({ error: 'Email ou senha incorretos' });
-  }
-
-  const token = app.jwt.sign({ id: usuario.id, role: usuario.role });
-  return { token };
-});
-
-const authenticate = async (request, reply) => {
+// Middleware de autenticação
+app.decorate('authenticate', async (request, reply) => {
   try {
     await request.jwtVerify();
   } catch (err) {
     reply.send(err);
   }
-};
+});
 
-const authorizeAdmin = (request, reply, done) => {
-  if (request.user.role !== Role.ADMIN) {
-    return reply.status(403).send({ error: 'Acesso negado' });
+// Middleware de autorização para administrador
+app.decorate('authorizeAdmin', async (request, reply) => {
+  if (!request.user.isAdmin) {
+    reply.status(403).send({ error: 'Acesso negado' });
   }
-  done();
-};
+});
 
+// Endpoint para criar o primeiro administrador
+app.post('/primeiro-admin', async (request, reply) => {
+  const createAdminSchema = z.object({
+    nomeUsuario: z.string(),
+    senha: z.string(),
+    email: z.string().email(),
+    abrigoId: z.number(),
+  });
 
-// Endpoints de Abrigos
-app.post('/abrigos', { preValidation: [authenticate, authorizeAdmin] }, async (request, reply) => {
+  const { nomeUsuario, senha, email, abrigoId } = createAdminSchema.parse(request.body);
+
+  const adminExists = await prisma.usuario.findFirst({
+    where: { isAdmin: true },
+  });
+
+  if (adminExists) {
+    return reply.status(400).send({ error: 'Administrador já existe' });
+  }
+
+  const hashedSenha = await bcrypt.hash(senha, 10);
+
+  try {
+    await prisma.usuario.create({
+      data: { nomeUsuario, senha: hashedSenha, email, abrigoId, isAdmin: true },
+    });
+    return reply.status(201).send();
+  } catch (e) {
+    if (e.code === 'P2002') {
+      return reply.status(400).send({ error: 'Email já está em uso' });
+    }
+    throw e;
+  }
+});
+
+// Endpoints de Abrigos (protegidos para administrador)
+app.post('/abrigos', { preValidation: [app.authenticate, app.authorizeAdmin] }, async (request, reply) => {
   const createAbrigoSchema = z.object({
     nome: z.string(),
     endereco: z.string(),
@@ -78,7 +92,6 @@ app.post('/abrigos', { preValidation: [authenticate, authorizeAdmin] }, async (r
     throw e;
   }
 });
-
 
 app.get('/abrigos', async () => {
   const abrigos = await prisma.abrigo.findMany();
@@ -121,9 +134,8 @@ app.delete('/abrigos/:id', async (request) => {
   return { message: 'Abrigo deletado com sucesso' };
 });
 
-
-// Endpoints de Itens
-app.post('/itens', { preValidation: [authenticate, authorizeAdmin] }, async (request, reply) => {
+// Endpoints de Itens (protegidos para administrador)
+app.post('/itens', { preValidation: [app.authenticate, app.authorizeAdmin] }, async (request, reply) => {
   const createItemSchema = z.object({
     nome: z.string(),
     quantidade: z.number(),
@@ -145,8 +157,6 @@ app.post('/itens', { preValidation: [authenticate, authorizeAdmin] }, async (req
     throw e;
   }
 });
-
-
 
 app.get('/itens', async () => {
   const itens = await prisma.item.findMany();
@@ -192,20 +202,21 @@ app.delete('/itens/:id', async (request) => {
 });
 
 // Endpoints de Usuários
-app.post('/usuarios', { preValidation: [authenticate, authorizeAdmin] }, async (request, reply) => {
+app.post('/usuarios', { preValidation: [app.authenticate, app.authorizeAdmin] }, async (request, reply) => {
   const createUsuarioSchema = z.object({
     nomeUsuario: z.string(),
     senha: z.string(),
     email: z.string().email(),
     abrigoId: z.number(),
-    role: z.nativeEnum(Role),
   });
 
-  const { nomeUsuario, senha, email, abrigoId, role } = createUsuarioSchema.parse(request.body);
+  const { nomeUsuario, senha, email, abrigoId } = createUsuarioSchema.parse(request.body);
+
+  const hashedSenha = await bcrypt.hash(senha, 10);
 
   try {
     await prisma.usuario.create({
-      data: { nomeUsuario, senha, email, abrigoId, role },
+      data: { nomeUsuario, senha: hashedSenha, email, abrigoId, isAdmin: false },
     });
     return reply.status(201).send();
   } catch (e) {
@@ -216,12 +227,37 @@ app.post('/usuarios', { preValidation: [authenticate, authorizeAdmin] }, async (
   }
 });
 
-app.get('/usuarios', { preValidation: [authenticate, authorizeAdmin] }, async () => {
+app.post('/login', async (request, reply) => {
+  const loginSchema = z.object({
+    email: z.string().email(),
+    senha: z.string(),
+  });
+
+  const { email, senha } = loginSchema.parse(request.body);
+
+  const usuario = await prisma.usuario.findUnique({
+    where: { email },
+  });
+
+  if (!usuario || !(await bcrypt.compare(senha, usuario.senha))) {
+    return reply.status(401).send({ error: 'Credenciais inválidas' });
+  }
+
+  const token = app.jwt.sign({
+    id: usuario.id,
+    email: usuario.email,
+    isAdmin: usuario.isAdmin,
+  });
+
+  return reply.send({ token });
+});
+
+app.get('/usuarios', { preValidation: [app.authenticate, app.authorizeAdmin] }, async () => {
   const usuarios = await prisma.usuario.findMany();
   return { usuarios };
 });
 
-app.get('/usuarios/:id', { preValidation: [authenticate, authorizeAdmin] }, async (request) => {
+app.get('/usuarios/:id', { preValidation: [app.authenticate, app.authorizeAdmin] }, async (request) => {
   const { id } = request.params as { id: string };
   const usuario = await prisma.usuario.findUnique({
     where: { id: Number(id) },
@@ -230,27 +266,29 @@ app.get('/usuarios/:id', { preValidation: [authenticate, authorizeAdmin] }, asyn
   return { usuario };
 });
 
-app.put('/usuarios/:id', { preValidation: [authenticate, authorizeAdmin] }, async (request) => {
+app.put('/usuarios/:id', { preValidation: [app.authenticate, app.authorizeAdmin] }, async (request) => {
   const { id } = request.params as { id: string };
   const updateUsuarioSchema = z.object({
     nomeUsuario: z.string(),
     senha: z.string(),
     email: z.string().email(),
     abrigoId: z.number(),
-    role: z.nativeEnum(Role),
+    isAdmin: z.boolean(),
   });
 
-  const { nomeUsuario, senha, email, abrigoId, role } = updateUsuarioSchema.parse(request.body);
+  const { nomeUsuario, senha, email, abrigoId, isAdmin } = updateUsuarioSchema.parse(request.body);
+
+  const hashedSenha = await bcrypt.hash(senha, 10);
 
   await prisma.usuario.update({
     where: { id: Number(id) },
-    data: { nomeUsuario, senha, email, abrigoId, role },
+    data: { nomeUsuario, senha: hashedSenha, email, abrigoId, isAdmin },
   });
 
   return { message: 'Usuário atualizado com sucesso' };
 });
 
-app.delete('/usuarios/:id', { preValidation: [authenticate, authorizeAdmin] }, async (request) => {
+app.delete('/usuarios/:id', { preValidation: [app.authenticate, app.authorizeAdmin] }, async (request) => {
   const { id } = request.params as { id: string };
 
   await prisma.usuario.delete({
@@ -259,7 +297,6 @@ app.delete('/usuarios/:id', { preValidation: [authenticate, authorizeAdmin] }, a
 
   return { message: 'Usuário deletado com sucesso' };
 });
-
 
 // Endpoints de Doações
 app.post('/doacoes', async (request, reply) => {
@@ -323,11 +360,11 @@ app.delete('/doacoes/:id', async (request) => {
 // Inicie o servidor
 const start = async () => {
   try {
-      await app.listen(process.env.PORT || 3333, '0.0.0.0');
-      app.log.info(`Servidor rodando em ${app.server.address()}`);
+    await app.listen(process.env.PORT || 3333, '0.0.0.0');
+    app.log.info(`Servidor rodando em ${app.server.address()}`);
   } catch (err) {
-      app.log.error(err);
-      process.exit(1);
+    app.log.error(err);
+    process.exit(1);
   }
 };
 
