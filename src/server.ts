@@ -17,7 +17,7 @@ app.register(fastifyCors, corsOptions);
 
 // Middleware de JWT
 app.register(fastifyJwt, {
-  secret: 'your-secret-key',
+  secret: 'zecarioca',
 });
 
 // Autenticação
