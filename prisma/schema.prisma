@@ -34,6 +34,7 @@ model Usuario {
   email       String    @unique
   abrigoId    Int
   abrigo      Abrigo    @relation(fields: [abrigoId], references: [id])
+  role        Role      @default(USER)
 }
 
 model Doacao {
@@ -42,4 +43,9 @@ model Doacao {
   data       DateTime
   itemId     Int
   item       Item      @relation(fields: [itemId], references: [id])
+}
+
+enum Role {
+  ADMIN
+  USER
 }

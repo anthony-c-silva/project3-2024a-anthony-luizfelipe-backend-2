@@ -1,3 +1,6 @@
+-- CreateEnum
+CREATE TYPE "Role" AS ENUM ('ADMIN', 'USER');
+
 -- CreateTable
 CREATE TABLE "Abrigo" (
     "id" SERIAL NOT NULL,
@@ -27,6 +30,7 @@ CREATE TABLE "Usuario" (
     "senha" TEXT NOT NULL,
     "email" TEXT NOT NULL,
     "abrigoId" INTEGER NOT NULL,
+    "role" "Role" NOT NULL DEFAULT 'USER',
 
     CONSTRAINT "Usuario_pkey" PRIMARY KEY ("id")
 );

@@ -1,7 +1,8 @@
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, Role } from '@prisma/client';
 import fastify from 'fastify';
 import { z } from 'zod';
 import fastifyCors from 'fastify-cors';
+import fastifyJwt from 'fastify-jwt';
 
 const app = fastify();
 const prisma = new PrismaClient();
@@ -14,9 +15,50 @@ const corsOptions = {
 };
 app.register(fastifyCors, corsOptions);
 
-// Endpoints de Abrigos
+// Middleware de JWT
+app.register(fastifyJwt, {
+  secret: 'your-secret-key',
+});
 
-app.post('/abrigos', async (request, reply) => {
+// Autenticação
+app.post('/login', async (request, reply) => {
+  const loginSchema = z.object({
+    email: z.string().email(),
+    senha: z.string(),
+  });
+
+  const { email, senha } = loginSchema.parse(request.body);
+
+  const usuario = await prisma.usuario.findUnique({
+    where: { email },
+  });
+
+  if (!usuario || usuario.senha !== senha) {
+    return reply.status(401).send({ error: 'Email ou senha incorretos' });
+  }
+
+  const token = app.jwt.sign({ id: usuario.id, role: usuario.role });
+  return { token };
+});
+
+const authenticate = async (request, reply) => {
+  try {
+    await request.jwtVerify();
+  } catch (err) {
+    reply.send(err);
+  }
+};
+
+const authorizeAdmin = (request, reply, done) => {
+  if (request.user.role !== Role.ADMIN) {
+    return reply.status(403).send({ error: 'Acesso negado' });
+  }
+  done();
+};
+
+
+// Endpoints de Abrigos
+app.post('/abrigos', { preValidation: [authenticate, authorizeAdmin] }, async (request, reply) => {
   const createAbrigoSchema = z.object({
     nome: z.string(),
     endereco: z.string(),
@@ -36,6 +78,7 @@ app.post('/abrigos', async (request, reply) => {
     throw e;
   }
 });
+
 
 app.get('/abrigos', async () => {
   const abrigos = await prisma.abrigo.findMany();
@@ -78,9 +121,9 @@ app.delete('/abrigos/:id', async (request) => {
   return { message: 'Abrigo deletado com sucesso' };
 });
 
-// Endpoints de Itens
 
-app.post('/itens', async (request, reply) => {
+// Endpoints de Itens
+app.post('/itens', { preValidation: [authenticate, authorizeAdmin] }, async (request, reply) => {
   const createItemSchema = z.object({
     nome: z.string(),
     quantidade: z.number(),
@@ -102,6 +145,7 @@ app.post('/itens', async (request, reply) => {
     throw e;
   }
 });
+
 
 
 app.get('/itens', async () => {
@@ -147,24 +191,21 @@ app.delete('/itens/:id', async (request) => {
   return { message: 'Item deletado com sucesso' };
 });
 
-
-
-
-
 // Endpoints de Usuários
-app.post('/usuarios', async (request, reply) => {
+app.post('/usuarios', { preValidation: [authenticate, authorizeAdmin] }, async (request, reply) => {
   const createUsuarioSchema = z.object({
     nomeUsuario: z.string(),
     senha: z.string(),
     email: z.string().email(),
     abrigoId: z.number(),
+    role: z.nativeEnum(Role),
   });
 
-  const { nomeUsuario, senha, email, abrigoId } = createUsuarioSchema.parse(request.body);
+  const { nomeUsuario, senha, email, abrigoId, role } = createUsuarioSchema.parse(request.body);
 
   try {
     await prisma.usuario.create({
-      data: { nomeUsuario, senha, email, abrigoId },
+      data: { nomeUsuario, senha, email, abrigoId, role },
     });
     return reply.status(201).send();
   } catch (e) {
@@ -175,12 +216,12 @@ app.post('/usuarios', async (request, reply) => {
   }
 });
 
-app.get('/usuarios', async () => {
+app.get('/usuarios', { preValidation: [authenticate, authorizeAdmin] }, async () => {
   const usuarios = await prisma.usuario.findMany();
   return { usuarios };
 });
 
-app.get('/usuarios/:id', async (request) => {
+app.get('/usuarios/:id', { preValidation: [authenticate, authorizeAdmin] }, async (request) => {
   const { id } = request.params as { id: string };
   const usuario = await prisma.usuario.findUnique({
     where: { id: Number(id) },
@@ -189,26 +230,27 @@ app.get('/usuarios/:id', async (request) => {
   return { usuario };
 });
 
-app.put('/usuarios/:id', async (request) => {
+app.put('/usuarios/:id', { preValidation: [authenticate, authorizeAdmin] }, async (request) => {
   const { id } = request.params as { id: string };
   const updateUsuarioSchema = z.object({
     nomeUsuario: z.string(),
     senha: z.string(),
     email: z.string().email(),
     abrigoId: z.number(),
+    role: z.nativeEnum(Role),
   });
 
-  const { nomeUsuario, senha, email, abrigoId } = updateUsuarioSchema.parse(request.body);
+  const { nomeUsuario, senha, email, abrigoId, role } = updateUsuarioSchema.parse(request.body);
 
   await prisma.usuario.update({
     where: { id: Number(id) },
-    data: { nomeUsuario, senha, email, abrigoId },
+    data: { nomeUsuario, senha, email, abrigoId, role },
   });
 
   return { message: 'Usuário atualizado com sucesso' };
 });
 
-app.delete('/usuarios/:id', async (request) => {
+app.delete('/usuarios/:id', { preValidation: [authenticate, authorizeAdmin] }, async (request) => {
   const { id } = request.params as { id: string };
 
   await prisma.usuario.delete({
@@ -217,9 +259,6 @@ app.delete('/usuarios/:id', async (request) => {
 
   return { message: 'Usuário deletado com sucesso' };
 });
-
-
-
 
 
 // Endpoints de Doações
