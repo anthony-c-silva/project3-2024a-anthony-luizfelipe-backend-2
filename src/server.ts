@@ -311,6 +311,68 @@ app.delete('/usuarios/:id', { preValidation: [app.authenticate, authorizeAdmin] 
   return { message: 'Usuário deletado com sucesso' };
 });
 
+// Endpoints de Doações (CRUD)
+app.post('/doacoes', { preValidation: [app.authenticate] }, async (request, reply) => {
+  const createDoacaoSchema = z.object({
+    quantidade: z.number(),
+    data: z.date(),
+    itemId: z.number(),
+  });
+
+  const { quantidade, data, itemId } = createDoacaoSchema.parse(request.body);
+
+  try {
+    await prisma.doacao.create({
+      data: { quantidade, data, itemId },
+    });
+    return reply.status(201).send();
+  } catch (e) {
+    throw e;
+  }
+});
+
+app.get('/doacoes', async () => {
+  const doacoes = await prisma.doacao.findMany();
+  return { doacoes };
+});
+
+app.get('/doacoes/:id', async (request) => {
+  const { id } = request.params as { id: string };
+  const doacao = await prisma.doacao.findUnique({
+    where: { id: Number(id) },
+  });
+
+  return { doacao };
+});
+
+app.put('/doacoes/:id', async (request) => {
+  const { id } = request.params as { id: string };
+  const updateDoacaoSchema = z.object({
+    quantidade: z.number(),
+    data: z.date(),
+    itemId: z.number(),
+  });
+
+  const { quantidade, data, itemId } = updateDoacaoSchema.parse(request.body);
+
+  await prisma.doacao.update({
+    where: { id: Number(id) },
+    data: { quantidade, data, itemId },
+  });
+
+  return { message: 'Doação atualizada com sucesso' };
+});
+
+app.delete('/doacoes/:id', async (request) => {
+  const { id } = request.params as { id: string };
+
+  await prisma.doacao.delete({
+    where: { id: Number(id) },
+  });
+
+  return { message: 'Doação deletada com sucesso' };
+});
+
 // Inicie o servidor
 const start = async () => {
   try {
