@@ -261,6 +261,7 @@ app.post('/login', async (request, reply) => {
     id: usuario.id,
     email: usuario.email,
     isAdmin: usuario.isAdmin,
+    abrigoId: usuario.abrigoId,
   });
 
   return reply.send({ token });
