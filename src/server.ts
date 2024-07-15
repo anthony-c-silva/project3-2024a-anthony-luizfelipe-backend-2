@@ -259,6 +259,7 @@ app.post('/login', async (request, reply) => {
 
   const token = app.jwt.sign({
     id: usuario.id,
+    nome: usuario.nomeUsuario,
     email: usuario.email,
     isAdmin: usuario.isAdmin,
     abrigoId: usuario.abrigoId,
