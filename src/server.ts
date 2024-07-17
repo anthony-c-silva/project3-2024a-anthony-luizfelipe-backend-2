@@ -337,6 +337,43 @@ app.put('/itens/:id/incremento', { preValidation: [app.authenticate] }, async (r
     throw e;
   }
 });
+// Endpoint para decrementar a quantidade de um item
+app.put('/itens/:id/decremento', { preValidation: [app.authenticate] }, async (request, reply) => {
+  const { id } = request.params as { id: string };
+  const decrementSchema = z.object({
+    quantidade: z.number().positive(),
+  });
+
+  const { quantidade } = decrementSchema.parse(request.body);
+
+  try {
+    const item = await prisma.item.findUnique({
+      where: { id: Number(id) },
+    });
+
+    if (!item) {
+      return reply.status(404).send({ error: 'Item não encontrado' });
+    }
+
+    const novaQuantidade = item.quantidade - quantidade;
+
+    if (novaQuantidade < 0) {
+      return reply.status(400).send({ error: 'Quantidade não pode ser menor que zero' });
+    }
+
+    const itemAtualizado = await prisma.item.update({
+      where: { id: Number(id) },
+      data: {
+        quantidade: novaQuantidade,
+      },
+    });
+
+    return reply.status(200).send({ message: 'Quantidade decrementada com sucesso', item: itemAtualizado });
+  } catch (e) {
+    reply.status(400).send({ error: 'Erro ao decrementar a quantidade' });
+    throw e;
+  }
+});
 
 // Endpoints de Doações (CRUD)
 app.post('/doacoes', { preValidation: [app.authenticate] }, async (request, reply) => {
