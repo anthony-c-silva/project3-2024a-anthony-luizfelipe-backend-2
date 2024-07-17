@@ -312,6 +312,31 @@ app.delete('/usuarios/:id', { preValidation: [app.authenticate, authorizeAdmin] 
 
   return { message: 'Usuário deletado com sucesso' };
 });
+// Endpoint para incrementar a quantidade de um item
+app.put('/itens/:id/incremento', { preValidation: [app.authenticate] }, async (request, reply) => {
+  const { id } = request.params as { id: string };
+  const incrementSchema = z.object({
+    quantidade: z.number().positive(),
+  });
+
+  const { quantidade } = incrementSchema.parse(request.body);
+
+  try {
+    const item = await prisma.item.update({
+      where: { id: Number(id) },
+      data: {
+        quantidade: {
+          increment: quantidade,
+        },
+      },
+    });
+
+    return reply.status(200).send({ message: 'Quantidade incrementada com sucesso', item });
+  } catch (e) {
+    reply.status(400).send({ error: 'Erro ao incrementar a quantidade' });
+    throw e;
+  }
+});
 
 // Endpoints de Doações (CRUD)
 app.post('/doacoes', { preValidation: [app.authenticate] }, async (request, reply) => {
