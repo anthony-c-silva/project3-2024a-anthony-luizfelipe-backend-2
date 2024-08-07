@@ -174,6 +174,7 @@ Este projeto é um sistema de controle de estoque para abrigos, desenvolvido em 
 
 1. Inicie o servidor:
    ```bash
+   npm install
    npm run dev
 
 
