@@ -12,8 +12,6 @@ Este projeto é um sistema de controle de estoque para abrigos, desenvolvido em 
   - [Usuários](#usuários)
   - [Doações](#doações)
 - [Execução](#execução)
-- [Contribuição](#contribuição)
-- [Licença](#licença)
 
 ## Instalação
 
