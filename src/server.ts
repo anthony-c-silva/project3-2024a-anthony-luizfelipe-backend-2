@@ -1,16 +1,29 @@
 import { PrismaClient } from '@prisma/client';
-import fastify from 'fastify';
+import fastify, { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { z } from 'zod';
-import fastifyCors from 'fastify-cors';
-import fastifyJwt from 'fastify-jwt';
+import fastifyCors from '@fastify/cors';
+import fastifyJwt, { FastifyJWTOptions } from '@fastify/jwt';
 import bcrypt from 'bcrypt';
 
-const app = fastify();
+// Tipagem para incluir o campo `user` na requisição
+declare module 'fastify' {
+  interface FastifyInstance {
+    authenticate: (request: FastifyRequest, reply: FastifyReply) => Promise<void>;
+  }
+
+  // Declaração da tipagem correta do JWT para incluir `isAdmin`
+  interface FastifyJWT {
+    payload: { id: number; nome: string; email: string; isAdmin: boolean; abrigoId: number };
+    user: { id: number; nome: string; email: string; isAdmin: boolean; abrigoId: number };
+  }
+}
+
+const app: FastifyInstance = fastify();
 const prisma = new PrismaClient();
 
 // Middleware de CORS
 const corsOptions = {
-  origin: ['https://endearing-starship-fe8800.netlify.app', 'http://localhost:5173'], 
+  origin: ['https://endearing-starship-fe8800.netlify.app', 'http://localhost:5173'],
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
 };
@@ -19,23 +32,27 @@ app.register(fastifyCors, corsOptions);
 // Configuração do JWT
 app.register(fastifyJwt, {
   secret: 'supersecretkey'
-});
+} as FastifyJWTOptions);
 
 // Middleware de autenticação
-app.decorate('authenticate', async (request, reply) => {
+app.decorate('authenticate', async (request: FastifyRequest, reply: FastifyReply) => {
   try {
-    await request.jwtVerify();
+    // Aqui, o Fastify agora entende que `request.user` tem a estrutura correta com `isAdmin`
+    await request.jwtVerify<{ id: number; nome: string; email: string; isAdmin: boolean; abrigoId: number }>();
   } catch (err) {
     reply.send(err);
   }
 });
 
 // Middleware para autorizar administrador
-const authorizeAdmin = async (request, reply) => {
-  if (!request.user || !request.user.isAdmin) {
-    reply.status(403).send({ error: 'Acesso negado' });
+const authorizeAdmin = async (request: FastifyRequest, reply: FastifyReply) => {
+  const user = request.user as { id: number; nome: string; email: string; isAdmin: boolean; abrigoId: number };
+  
+  if (!user || !user.isAdmin) {
+    return reply.status(403).send({ error: 'Acesso negado' });
   }
 };
+
 
 // Endpoint para criar o primeiro administrador junto com o abrigo
 app.post('/primeiro-admin', async (request, reply) => {
@@ -50,7 +67,6 @@ app.post('/primeiro-admin', async (request, reply) => {
   });
 
   const { nomeUsuario, senha, email, abrigo } = createAdminSchema.parse(request.body);
-
   const hashedSenha = await bcrypt.hash(senha, 10);
 
   try {
@@ -64,22 +80,38 @@ app.post('/primeiro-admin', async (request, reply) => {
         senha: hashedSenha,
         email,
         abrigoId: novoAbrigo.id,
-        isAdmin: true,
+        isAdmin: true,  // Primeiro usuário é o administrador
       },
     });
 
     return reply.status(201).send();
   } catch (e) {
-    if (e.code === 'P2002') {
-      return reply.status(400).send({ error: 'Email já está em uso' });
+    if (typeof e === 'object' && e !== null && 'code' in e) {
+      if ((e as any).code === 'P2002') {
+        return reply.status(400).send({ error: 'Email já está em uso' });
+      }
     }
-    throw e;
-  }
+    throw e;  // Re-throw se não for o erro específico
+  }  
+});
+app.get('/abrigos', async () => {
+  const abrigos = await prisma.abrigo.findMany();
+  return { abrigos };
 });
 
+app.get('/abrigos/:id', async (request) => {
+  const { id } = request.params as { id: string };
+  const abrigo = await prisma.abrigo.findUnique({
+    where: { id: Number(id) },
+  });
+
+  return { abrigo };
+});
 // Endpoints de Abrigos (protegidos para administrador)
 app.post('/abrigos', { preValidation: [app.authenticate] }, async (request, reply) => {
-  if (!request.user.isAdmin) {
+  const user = request.user as { id: number; nome: string; email: string; isAdmin: boolean; abrigoId: number };
+  
+  if (!user.isAdmin) {
     return reply.status(403).send({ error: 'Acesso negado' });
   }
 
@@ -96,27 +128,14 @@ app.post('/abrigos', { preValidation: [app.authenticate] }, async (request, repl
     });
     return reply.status(201).send();
   } catch (e) {
-    if (e.code === 'P2002') {
-      return reply.status(400).send({ error: 'Abrigo já existe' });
+    if (typeof e === 'object' && e !== null && 'code' in e) {
+      if ((e as any).code === 'P2002') {
+        return reply.status(400).send({ error: 'Abrigo já existe' });
+      }
     }
-    throw e;
-  }
+    throw e;  // Re-lança o erro se não for o caso tratado
+  }  
 });
-
-app.get('/abrigos', async () => {
-  const abrigos = await prisma.abrigo.findMany();
-  return { abrigos };
-});
-
-app.get('/abrigos/:id', async (request) => {
-  const { id } = request.params as { id: string };
-  const abrigo = await prisma.abrigo.findUnique({
-    where: { id: Number(id) },
-  });
-
-  return { abrigo };
-});
-
 app.put('/abrigos/:id', async (request) => {
   const { id } = request.params as { id: string };
   const updateAbrigoSchema = z.object({
@@ -146,7 +165,10 @@ app.delete('/abrigos/:id', async (request) => {
 
 // Endpoints de Itens (protegidos para administrador)
 app.post('/itens', { preValidation: [app.authenticate] }, async (request, reply) => {
-  if (!request.user.isAdmin) {
+  // Tipando corretamente o request.user
+  const user = request.user as { id: number; nome: string; email: string; isAdmin: boolean; abrigoId: number };
+
+  if (!user.isAdmin) {
     return reply.status(403).send({ error: 'Acesso negado' });
   }
 
@@ -164,13 +186,14 @@ app.post('/itens', { preValidation: [app.authenticate] }, async (request, reply)
       data: { nome, quantidade, categoria, abrigoId },
     });
     return reply.status(201).send();
-  } catch (e) {
+  } catch (e: any) {
     if (e.code === 'P2002') {
       return reply.status(400).send({ error: 'Item já existe' });
     }
     throw e;
   }
 });
+
 
 app.get('/itens', async () => {
   const itens = await prisma.item.findMany();
@@ -234,12 +257,17 @@ app.post('/usuarios', async (request, reply) => {
     });
     return reply.status(201).send();
   } catch (e) {
-    if (e.code === 'P2002') {
-      return reply.status(400).send({ error: 'Email já está em uso' });
+    // Verifica se `e` é um objeto e se tem a propriedade `code`
+    if (typeof e === 'object' && e !== null && 'code' in e) {
+      const error = e as { code?: string }; // Tipando `e` para acessar `code`
+      if (error.code === 'P2002') {
+        return reply.status(400).send({ error: 'Email já está em uso' });
+      }
     }
-    throw e;
+    throw e; // Re-lança o erro se não for o caso tratado
   }
 });
+
 
 app.post('/login', async (request, reply) => {
   const loginSchema = z.object({
@@ -437,15 +465,27 @@ app.delete('/doacoes/:id', async (request) => {
   return { message: 'Doação deletada com sucesso' };
 });
 
-// Inicie o servidor
+
+
+
+//Inicie o servidor
 const start = async () => {
   try {
-    await app.listen(process.env.PORT || 3333, '0.0.0.0');
-    app.log.info(`Servidor rodando em ${app.server.address()}`);
+    const port = process.env.PORT ? parseInt(process.env.PORT) : 3333;
+    await app.listen({
+      port: port,
+      host: '0.0.0.0',
+    });
+    console.log(`Servidor rodando na porta ${port}`);
   } catch (err) {
+    console.error('Erro ao iniciar o servidor:', err); // Adicionar log explícito para erros
     app.log.error(err);
     process.exit(1);
   }
 };
-
 start();
+
+
+
+
+
