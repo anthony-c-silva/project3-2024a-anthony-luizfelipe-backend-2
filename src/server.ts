@@ -464,10 +464,6 @@ app.delete('/doacoes/:id', async (request) => {
 
   return { message: 'Doação deletada com sucesso' };
 });
-
-
-
-
 //Inicie o servidor
 const start = async () => {
   try {
