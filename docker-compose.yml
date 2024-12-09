@@ -1,0 +1,43 @@
+version: '3.8'
+services:
+  master:
+    image: postgres:17
+    container_name: postgres-master
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: 1234
+      POSTGRES_DB: controle_estoque
+    ports:
+      - "5433:5432" # Porta do Master no host
+    volumes:
+      - master_data:/var/lib/postgresql/data
+    networks:
+      - replication_net
+
+  slave:
+    image: postgres:17
+    container_name: postgres-slave
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: 1234
+      POSTGRES_DB: controle_estoque
+    ports:
+      - "5434:5432" # Porta do Slave no host
+    volumes:
+      - slave_data:/var/lib/postgresql/data
+    depends_on:
+      - master
+    networks:
+      - replication_net
+    command: >
+      bash -c "
+        until ping -c 1 master; do sleep 1; done;
+        pg_basebackup -h master -D /var/lib/postgresql/data -U postgres -Fp -Xs -P -R
+        && postgres"
+    
+volumes:
+  master_data:
+  slave_data:
+
+networks:
+  replication_net:
